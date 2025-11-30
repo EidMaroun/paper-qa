@@ -2,7 +2,7 @@ from typing import Literal, Dict, Any, List, Optional
 from pydantic import BaseModel, Field
 from langchain.tools import StructuredTool
 from pathlib import Path
-from .Rag import RAGSearchTool
+from Rag import RAGSearchTool
 
 # Paths relative to this file's location (RAG SETUP directory)
 base_dir = Path(__file__).resolve().parent
@@ -14,7 +14,6 @@ rag_tool = RAGSearchTool(
     persist_directory=vectordb_path,
     collection_name="research_papers"
 )
-
 
 class SourceReference(BaseModel):
     """A reference to a source document."""
