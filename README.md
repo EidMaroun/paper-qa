@@ -150,9 +150,7 @@ Open [http://localhost:8000/docs](http://localhost:8000/docs) in your browser.
 | `GET` | `/health` | Health check |
 | `GET` | `/status` | Assistant status (ready, tools, conversation length) |
 | `POST` | `/chat` | Send message (maintains conversation history) |
-| `POST` | `/chat/single` | Send single message (no history) |
 | `POST` | `/clear` | Clear conversation history |
-| `POST` | `/reinitialize` | Reconnect to MCP server |
 
 ### Request/Response Examples
 
