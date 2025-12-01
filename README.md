@@ -237,24 +237,3 @@ If FastAPI shows "Research Assistant failed to initialize":
 ### Connection errors during chat
 
 Transient network issues with OpenAI API. Simply retry the request.
-
----
-
-## Development
-
-### Run Tests
-
-```bash
-cd "Agentic System"
-python test_agent.py
-```
-
-### Interactive Testing
-
-Open `Build Up Phase/MCP Server Tryout with the Agent/McpTryout.ipynb` in VS Code or Jupyter.
-
----
-
-## License
-
-MIT
