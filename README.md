@@ -211,29 +211,3 @@ Research Assistant Multi Agent System/
 └── Frontend/                     # (Future) Web UI
 ```
 
----
-
-## Troubleshooting
-
-### Port already in use
-
-If you see `[Errno 10048] error while attempting to bind on address`:
-
-```powershell
-# Kill process on port 8787 (MCP)
-Get-NetTCPConnection -LocalPort 8787 | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }
-
-# Kill process on port 8000 (FastAPI)
-Get-NetTCPConnection -LocalPort 8000 | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }
-```
-
-### MCP Server not running
-
-If FastAPI shows "Research Assistant failed to initialize":
-
-1. Make sure MCP server is running first (port 8787)
-2. Call the reinitialize endpoint: `POST http://localhost:8000/reinitialize`
-
-### Connection errors during chat
-
-Transient network issues with OpenAI API. Simply retry the request.
