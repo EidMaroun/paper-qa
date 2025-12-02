@@ -5,14 +5,17 @@ Provides the following tools:
 1. research_paper_probe - Search and query research papers in the RAG database
 2. search_arxiv - Search arXiv for academic papers
 3. download_paper - Download PDF papers and auto-index them in the vector database
+4. generate_report - Generate a PDF report from markdown content
 """
 import os
 import sys
 from typing import Dict, Any, List, Optional
 from pathlib import Path
+from datetime import datetime
 
 from mcp.server.fastmcp import FastMCP
-from pydantic import ValidationError
+from pydantic import ValidationError, BaseModel, Field
+from markdown_pdf import MarkdownPdf, Section
 
 # Setup environment
 from dotenv import load_dotenv, find_dotenv
@@ -150,6 +153,96 @@ def mcp_download_paper(
     return download_pdf(**args.model_dump())
 
 
+# ============== Tool 4: Generate PDF Report ==============
+
+# Output directory for generated reports
+REPORTS_DIR = Path(__file__).resolve().parent.parent / "Reports"
+
+
+class GenerateReportArgs(BaseModel):
+    """Arguments for generating a PDF report."""
+    title: str = Field(..., description="Title of the report")
+    content: str = Field(..., description="Markdown content for the report body")
+    author: Optional[str] = Field(default="Research Assistant", description="Author name")
+    filename: Optional[str] = Field(default=None, description="Custom filename (without .pdf extension)")
+    include_toc: bool = Field(default=True, description="Include table of contents")
+
+
+@mcp.tool(
+    name="generate_report",
+    description=(
+        "Generate a PDF report from markdown content. "
+        "Use this to create research reports, summaries, or documentation. "
+        "Supports markdown formatting: headers, bold, italic, lists, tables, code blocks. "
+        "Reports are saved to the Reports/ folder."
+    ),
+)
+def mcp_generate_report(
+    title: str,
+    content: str,
+    author: Optional[str] = "Research Assistant",
+    filename: Optional[str] = None,
+    include_toc: bool = True,
+) -> Dict[str, Any]:
+    """
+    Generate a PDF report from markdown content.
+    """
+    try:
+        args = GenerateReportArgs(
+            title=title,
+            content=content,
+            author=author,
+            filename=filename,
+            include_toc=include_toc
+        )
+    except ValidationError as e:
+        return {"error": "validation_error", "details": e.errors()}
+
+    try:
+        # Create reports directory if it doesn't exist
+        REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+        
+        # Generate filename if not provided
+        if args.filename:
+            safe_filename = "".join(c if c.isalnum() or c in " -_" else "_" for c in args.filename)
+        else:
+            # Use title + timestamp
+            safe_title = "".join(c if c.isalnum() or c in " -_" else "_" for c in args.title)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            safe_filename = f"{safe_title}_{timestamp}"
+        
+        output_path = REPORTS_DIR / f"{safe_filename}.pdf"
+        
+        # Create PDF
+        pdf = MarkdownPdf()
+        pdf.meta["title"] = args.title
+        pdf.meta["author"] = args.author or "Research Assistant"
+        
+        # Add title header to content
+        full_content = f"# {args.title}\n\n{args.content}"
+        
+        # Add section with optional TOC
+        pdf.add_section(Section(full_content, toc=args.include_toc))
+        
+        # Save PDF
+        pdf.save(str(output_path))
+        
+        return {
+            "success": True,
+            "message": f"Report generated successfully",
+            "filepath": str(output_path),
+            "filename": f"{safe_filename}.pdf",
+            "title": args.title
+        }
+        
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "message": f"Failed to generate report: {str(e)}"
+        }
+
+
 # ============== Server Entry Point ==============
 
 if __name__ == "__main__":
@@ -158,4 +251,5 @@ if __name__ == "__main__":
     print("  1. research_paper_probe - Query the RAG knowledge base")
     print("  2. search_arxiv - Search arXiv for papers")
     print("  3. download_paper - Download and index papers")
+    print("  4. generate_report - Generate PDF reports from markdown")
     mcp.run(transport="sse")
