@@ -139,6 +139,88 @@ class RAGSearchTool(BaseTool):
         
         return metadata
 
+    def _get_indexed_papers(self) -> set:
+        """Get the set of paper file paths already indexed in the VectorDB."""
+        if self._vectordb is None:
+            return set()
+        
+        try:
+            # Get all documents from the collection
+            collection = self._vectordb._collection
+            result = collection.get(include=["metadatas"])
+            
+            # Extract unique file paths from metadata
+            indexed_paths = set()
+            for metadata in result.get("metadatas", []):
+                if metadata and "file_path" in metadata:
+                    indexed_paths.add(metadata["file_path"])
+            
+            return indexed_paths
+        except Exception as e:
+            print(f"Warning: Could not get indexed papers: {e}")
+            return set()
+
+    def _get_all_pdfs_in_papers_dir(self) -> set:
+        """Get the set of all PDF file paths in the Papers directory."""
+        pdf_paths = set()
+        for pdf_file in self.default_papers_path.rglob("*.pdf"):
+            pdf_paths.add(str(pdf_file.resolve()))
+        return pdf_paths
+
+    def _index_missing_papers(self, missing_paths: set):
+        """Index papers that are in the Papers directory but not in VectorDB."""
+        if not missing_paths:
+            return
+        
+        print(f"📄 Found {len(missing_paths)} new paper(s) to index...")
+        
+        for pdf_path in missing_paths:
+            try:
+                pdf_file = Path(pdf_path)
+                print(f"  → Indexing: {pdf_file.name}")
+                
+                # Load the PDF
+                loader = PyMuPDFLoader(str(pdf_file))
+                raw_docs = loader.load()
+                
+                # Extract and add metadata
+                paper_metadata = self._extract_paper_metadata(pdf_file, self.default_papers_path)
+                for d in raw_docs:
+                    d.metadata.update(paper_metadata)
+                    d.metadata.update({
+                        "doc_id": pdf_file.stem,
+                        "relpath": str(pdf_file.relative_to(self.default_papers_path)) 
+                            if self.default_papers_path in pdf_file.parents or pdf_file.parent == self.default_papers_path 
+                            else pdf_file.name
+                    })
+                
+                # Split into chunks
+                splitter = RecursiveCharacterTextSplitter(chunk_size=1500, chunk_overlap=250)
+                split_docs = splitter.split_documents(raw_docs)
+                
+                # Add to vectordb
+                self._vectordb.add_documents(split_docs)
+                print(f"    ✓ Added {len(split_docs)} chunks")
+                
+            except Exception as e:
+                print(f"    ✗ Failed to index {pdf_path}: {e}")
+        
+        print(f"✓ Finished indexing new papers")
+
+    def _check_and_index_missing_papers(self):
+        """Check for papers in Papers directory that are not indexed and index them."""
+        if self._vectordb is None:
+            return
+            
+        indexed_papers = self._get_indexed_papers()
+        all_pdfs = self._get_all_pdfs_in_papers_dir()
+        missing_papers = all_pdfs - indexed_papers
+        
+        if missing_papers:
+            self._index_missing_papers(missing_papers)
+        else:
+            print("✓ All papers in Papers directory are already indexed")
+
     def _load_or_build_vectordb(self):
         db_file = self.persist_directory / "chroma.sqlite3"
         if db_file.exists() and self._vectordb is None:
@@ -147,6 +229,8 @@ class RAGSearchTool(BaseTool):
                 collection_name=self.collection_name,
                 embedding_function=self._embeddings,
             )
+            # Check for new papers that need to be indexed
+            self._check_and_index_missing_papers()
             return
 
         if self._vectordb is not None:
