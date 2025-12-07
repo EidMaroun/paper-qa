@@ -278,7 +278,7 @@ REPORTS_DIR = Path("C:/your/custom/reports/path")
 
 **To change the prompt file:**
 ```python
-# In agent.py (line 131-132)
+# In agent.py (line 132-133)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PROMPT_PATH = os.path.join(BASE_DIR, "Prompts", "prompt_final.md")  # Change filename here
 ```
