@@ -7,6 +7,7 @@ This module provides:
 - ResearchAssistant: High-level interface combining agent + MCP tools
 """
 
+import os
 import operator
 from typing import List, Annotated, TypedDict, Optional, Any
 from langchain_core.messages import AnyMessage, SystemMessage, ToolMessage, AIMessage, HumanMessage
@@ -126,7 +127,12 @@ class MCPConnectionManager:
 
 # System prompt for the research assistant
 
-with open(r"C:\Users\Admin\Desktop\paper-qa\Agentic System\Agent SetUp\prompt.md", "r", encoding="utf-8") as file:
+
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PROMPT_PATH = os.path.join(BASE_DIR, "Prompts", "prompt_final.md")
+
+with open(PROMPT_PATH, "r", encoding="utf-8") as file:
     RESEARCH_ASSISTANT_PROMPT = file.read()
 
 
